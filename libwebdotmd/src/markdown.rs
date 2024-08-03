@@ -5,6 +5,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 
+#[derive(Debug)]
 pub struct MarkdownPage {
     /// starts from first line in the file and ends on line :content:
     metadata: Metadata,
@@ -15,7 +16,7 @@ impl Renderable for MarkdownPage {
     fn render(&self, templates: &HashMap<String, Template>) -> String {
         let mut rendered = String::new();
         for el in &self.content.elements {
-            rendered.push_str(&el.render(&templates));
+            rendered.push_str(&el.render(templates));
         }
         rendered
     }
@@ -36,8 +37,24 @@ struct Content {
 enum Element {
     Text(String),
     Break,
-    Header { level: usize, elements: Vec<Element> },
-    Link { text: String, link: String },
+    Header {
+        level: usize,
+        elements: Vec<Element>,
+    },
+    Link {
+        text: String,
+        link: String,
+    },
+    List {
+        list_type: ListType,
+        items: Vec<Vec<Element>>,
+    },
+}
+
+#[derive(PartialEq, Debug)]
+enum ListType {
+    Ordered { symbol: String },
+    Unordered { symbol: String },
 }
 
 impl Renderable for Element {
@@ -48,6 +65,7 @@ impl Renderable for Element {
             Break => "<br />".to_string(),
             Header { level, elements } => todo!(),
             Link { text, link } => todo!(),
+            List { list_type, items } => todo!(),
         }
     }
 }
@@ -56,17 +74,12 @@ pub fn load_markdown_pages(pages_path: &Path) -> Result<HashMap<String, Markdown
     let markdown_pages_content = load_files_in_dir_to_string(pages_path)?;
     let mut pages = HashMap::new();
     for (path, content) in markdown_pages_content {
-        let page = parse_markdown_page(&content);
-
+        let metadata = parse_metadata(&content);
+        let content = parse_content(&content);
+        let page = MarkdownPage { metadata, content };
         pages.insert(path.to_str().unwrap().to_string(), page);
     }
     Ok(pages)
-}
-
-fn parse_markdown_page(content: &str) -> MarkdownPage {
-    let metadata = parse_metadata(content);
-    let content = parse_content(content);
-    MarkdownPage { metadata, content }
 }
 
 fn parse_metadata(content: &str) -> Metadata {
@@ -118,6 +131,18 @@ fn parse_block(block: &str) -> Vec<Element> {
             elements: parse_block(text),
         };
         elements.push(header);
+        // NOTE: ORDER IS IMPORTANT, matching links first breaks matching list items that have
+        // links
+    } else if is_a_list(block) {
+        let mut items = vec![];
+        for line in block.trim().lines() {
+            let (_list_symbol, item) = line.split_once(' ').unwrap();
+            items.push(parse_block(item.trim()));
+            // if is_indented(line) && is_a_list(line) {}
+        }
+        let list_type = parse_list_type(block);
+        let list = List { list_type, items };
+        elements.push(list);
     } else if LINK_PATTERN.is_match(block) {
         let link_capture = LINK_PATTERN.captures(block).unwrap();
         let link_match = link_capture.get(0).unwrap();
@@ -125,23 +150,60 @@ fn parse_block(block: &str) -> Vec<Element> {
         if link_start_idx > 0 {
             elements.push(Text(block[..link_start_idx].to_string()));
         }
-        elements.push(Link {
+        let link = Link {
             text: link_capture.get(1).unwrap().as_str().to_string(),
             link: link_capture.get(2).unwrap().as_str().to_string(),
-        });
-        if link_end_idx != block.len() - 1 {
+        };
+        elements.push(link);
+        if link_end_idx != block.len() {
             let rest_of_block = &block[link_end_idx..];
             elements.extend(parse_block(rest_of_block));
         }
     } else {
-        elements.push(Text(block.to_string()));
+        elements.push(Text(block.trim().to_string()));
     }
     elements
 }
 
+const LIST_TYPES: &[&str] = &["-", "+", "1.", "a)"];
+const UNORDERED_LIST_TYPES: &[&str] = &["-", "+"];
+const ORDERED_LIST_TYPES: &[&str] = &["1.", "a)"];
+
+fn is_a_list(block: &str) -> bool {
+    let lines = block.lines();
+    for line in lines {
+        let Some((line_start, _)) = line.trim().split_once(' ') else {
+            return false;
+        };
+        if !LIST_TYPES.contains(&line_start) {
+            return false;
+        }
+    }
+    true
+}
+
+fn parse_list_type(s: &str) -> ListType {
+    for u_type in UNORDERED_LIST_TYPES {
+        if s.starts_with(u_type) {
+            return ListType::Unordered {
+                symbol: u_type.to_string(),
+            };
+        }
+    }
+    for o_type in ORDERED_LIST_TYPES {
+        if s.starts_with(o_type) {
+            return ListType::Ordered {
+                symbol: o_type.to_string(),
+            };
+        }
+    }
+    eprintln!("Must always return a valid ListType, didn't for: {}", s);
+    panic!();
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{parse_content, parse_metadata, Content, Element, Metadata};
+    use super::{is_a_list, parse_content, parse_list_type, parse_metadata, Content, Element, ListType, Metadata};
     use std::collections::HashMap;
 
     #[test]
@@ -275,4 +337,158 @@ Some text with a link: [link text](coolpage.com). Cool.";
         };
         assert_eq!(expected, got);
     }
+
+    #[test]
+    fn test_is_a_list() {
+        let block = "Some text.";
+        let block_is_a_list = is_a_list(block);
+        assert!(!block_is_a_list);
+
+        let block = "- Item 1
+- Item 2";
+        let block_is_a_list = is_a_list(block);
+        assert!(block_is_a_list);
+
+        let block = "+ Item 1
++ Item 2";
+        let block_is_a_list = is_a_list(block);
+        assert!(block_is_a_list);
+
+        let block = "1. Item 1
+1. Item 2";
+        let block_is_a_list = is_a_list(block);
+        assert!(block_is_a_list);
+
+        let block = "a) Item 1
+a) Item 2";
+        let block_is_a_list = is_a_list(block);
+        assert!(block_is_a_list);
+    }
+
+    #[test]
+    fn test_parse_list_type() {
+        let line = "- Item 1";
+        let got = parse_list_type(line);
+        let expected = ListType::Unordered {
+            symbol: "-".to_string(),
+        };
+        assert_eq!(expected, got);
+
+        let line = "+ Item 1";
+        let got = parse_list_type(line);
+        let expected = ListType::Unordered {
+            symbol: "+".to_string(),
+        };
+        assert_eq!(expected, got);
+
+        let line = "1. Item 1";
+        let got = parse_list_type(line);
+        let expected = ListType::Ordered {
+            symbol: "1.".to_string(),
+        };
+        assert_eq!(expected, got);
+
+        let line = "a) Item 1";
+        let got = parse_list_type(line);
+        let expected = ListType::Ordered {
+            symbol: "a)".to_string(),
+        };
+        assert_eq!(expected, got);
+    }
+
+    #[test]
+    fn test_parse_content_list() {
+        let content = ":content:
+- item 1
+- item 2
+
++ item 1
++ item 2
+
+1. item 1
+1. item 2
+
+a) item 1
+a) item 2
+
+a) item with a link [text](link.com), hurray!
+a) item 2
+
+- [text](link.com)";
+        let got = parse_content(content);
+        let expected = Content {
+            elements: vec![
+                Element::List {
+                    list_type: ListType::Unordered {
+                        symbol: "-".to_string(),
+                    },
+                    items: vec![
+                        vec![Element::Text("item 1".to_string())],
+                        vec![Element::Text("item 2".to_string())],
+                    ],
+                },
+                Element::Break,
+                Element::List {
+                    list_type: ListType::Unordered {
+                        symbol: "+".to_string(),
+                    },
+                    items: vec![
+                        vec![Element::Text("item 1".to_string())],
+                        vec![Element::Text("item 2".to_string())],
+                    ],
+                },
+                Element::Break,
+                Element::List {
+                    list_type: ListType::Ordered {
+                        symbol: "1.".to_string(),
+                    },
+                    items: vec![
+                        vec![Element::Text("item 1".to_string())],
+                        vec![Element::Text("item 2".to_string())],
+                    ],
+                },
+                Element::Break,
+                Element::List {
+                    list_type: ListType::Ordered {
+                        symbol: "a)".to_string(),
+                    },
+                    items: vec![
+                        vec![Element::Text("item 1".to_string())],
+                        vec![Element::Text("item 2".to_string())],
+                    ],
+                },
+                Element::Break,
+                Element::List {
+                    list_type: ListType::Ordered {
+                        symbol: "a)".to_string(),
+                    },
+                    items: vec![
+                        vec![
+                            Element::Text("item with a link ".to_string()),
+                            Element::Link {
+                                text: "text".to_string(),
+                                link: "link.com".to_string(),
+                            },
+                            Element::Text(", hurray!".to_string()),
+                        ],
+                        vec![Element::Text("item 2".to_string())],
+                    ],
+                },
+                Element::Break,
+                Element::List {
+                    list_type: ListType::Unordered {
+                        symbol: "-".to_string(),
+                    },
+                    items: vec![vec![Element::Link {
+                        text: "text".to_string(),
+                        link: "link.com".to_string(),
+                    }]],
+                },
+            ],
+        };
+        assert_eq!(expected, got);
+    }
+
+    #[test]
+    fn test_parse_content_nested_list() {}
 }
