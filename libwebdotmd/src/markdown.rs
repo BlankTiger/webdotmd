@@ -14,11 +14,16 @@ pub struct MarkdownPage {
 
 impl Renderable for MarkdownPage {
     fn render(&self, templates: &HashMap<String, Template>) -> String {
-        let mut rendered = String::new();
+        let mut content = String::new();
         for el in &self.content.elements {
-            rendered.push_str(&el.render(templates));
+            content.push_str(&el.render(templates));
         }
-        rendered
+        let mut filled_placeholders = self.metadata.info.clone();
+        filled_placeholders.insert("content".to_string(), content);
+        templates
+            .get(&self.metadata.info["template"])
+            .expect("Template to be found")
+            .fill_template(filled_placeholders)
     }
 }
 
@@ -49,6 +54,10 @@ enum Element {
         list_type: ListType,
         items: Vec<Vec<Element>>,
     },
+    Code {
+        lang: String,
+        code: String,
+    },
 }
 
 #[derive(PartialEq, Debug)]
@@ -62,20 +71,57 @@ impl Renderable for Element {
         use Element::*;
         match self {
             Text(text) => text.to_string(),
-            Break => "<br />".to_string(),
-            Header { level, elements } => todo!(),
-            Link { text, link } => todo!(),
-            List { list_type, items } => todo!(),
+            Break => "<br />\n".to_string(),
+            Header { level, elements } => templates
+                .get("templates/elements/header.html")
+                .expect("Header template not found")
+                .fill_template(HashMap::from([
+                    ("level".to_string(), level.to_string()),
+                    (
+                        "content".to_string(),
+                        elements.iter().map(|el| el.render(templates)).collect::<String>(),
+                    ),
+                ])),
+            Link { text, link } => templates
+                .get("templates/elements/link.html")
+                .expect("Link template not found")
+                .fill_template(HashMap::from([
+                    ("text".to_string(), text.to_string()),
+                    ("link".to_string(), link.to_string()),
+                ])),
+            List { list_type, items } => {
+                let mut rendered = String::new();
+                for item in items {
+                    let mut item_rendered = String::new();
+                    item_rendered.push_str("<li>");
+                    for el in item {
+                        item_rendered.push_str(&el.render(templates));
+                    }
+                    item_rendered.push_str("</li>");
+                    rendered.push_str(&item_rendered);
+                }
+                match list_type {
+                    ListType::Ordered { symbol } => {
+                        format!("<ol>{}</ol>", rendered)
+                    }
+                    ListType::Unordered { symbol } => {
+                        format!("<ul>{}</ul>", rendered)
+                    }
+                }
+            }
+            Code { lang, code } => {
+                format!("<pre><code class=\"language-{}\">{}</code></pre>", lang, code)
+            }
         }
     }
 }
 
 pub fn load_markdown_pages(pages_path: &Path) -> Result<HashMap<String, MarkdownPage>, std::io::Error> {
-    let markdown_pages_content = load_files_in_dir_to_string(pages_path)?;
+    let markdown_pages_content = load_files_in_dir_to_string(pages_path, Some("md"))?;
     let mut pages = HashMap::new();
-    for (path, content) in markdown_pages_content {
-        let metadata = parse_metadata(&content);
-        let content = parse_content(&content);
+    for (path, content) in &markdown_pages_content {
+        let metadata = parse_metadata(content);
+        let content = parse_content(content);
         let page = MarkdownPage { metadata, content };
         pages.insert(path.to_str().unwrap().to_string(), page);
     }
@@ -124,6 +170,8 @@ static LINK_PATTERN: Lazy<Regex> =
 fn parse_block(block: &str) -> Vec<Element> {
     let mut elements = vec![];
     use Element::*;
+
+    // NOTE: ORDER IS IMPORTANT, matching links first breaks matching list items that have links
     if block.starts_with('#') {
         let (level, text) = block.split_once(' ').unwrap();
         let header = Header {
@@ -131,8 +179,27 @@ fn parse_block(block: &str) -> Vec<Element> {
             elements: parse_block(text),
         };
         elements.push(header);
-        // NOTE: ORDER IS IMPORTANT, matching links first breaks matching list items that have
-        // links
+    } else if is_code(block) {
+        let block = block.trim();
+        let (_, lang) = block.lines().next().unwrap().split_once("```").unwrap();
+        let code = block
+            .lines()
+            .skip(1)
+            .collect::<Vec<&str>>()
+            .into_iter()
+            .rev()
+            .skip(1)
+            .rev()
+            .map(|s| {
+                let mut s = s.to_string();
+                s.push('\n');
+                s
+            })
+            .collect::<String>();
+        let lang = lang.to_string();
+        let code = code.trim().to_string();
+        let code = Code { lang, code };
+        elements.push(code);
     } else if is_a_list(block) {
         let mut items = vec![];
         let mut nested_list_lines = vec![];
@@ -175,6 +242,11 @@ fn parse_block(block: &str) -> Vec<Element> {
         elements.push(Text(block.trim().to_string()));
     }
     elements
+}
+
+fn is_code(block: &str) -> bool {
+    let block = block.trim();
+    block.starts_with("```") && block.ends_with("```")
 }
 
 const LIST_TYPES: &[&str] = &["-", "+", "1.", "a)"];
@@ -545,6 +617,27 @@ a) item 2
                         link: "link.com".to_string(),
                     }],
                 ],
+            }],
+        };
+        assert_eq!(expected, got);
+    }
+
+    #[test]
+    fn test_parse_content_code() {
+        let content = ":content:
+```rust
+fn hello_world() -> ! {
+    while true {}
+}
+```";
+        let got = parse_content(content);
+        let expected = Content {
+            elements: vec![Element::Code {
+                lang: "rust".to_string(),
+                code: "fn hello_world() -> ! {
+    while true {}
+}"
+                .to_string(),
             }],
         };
         assert_eq!(expected, got);

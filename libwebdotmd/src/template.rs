@@ -27,7 +27,7 @@ struct Position {
 }
 
 pub fn load_templates(templates_path: &Path) -> Result<HashMap<String, Template>, std::io::Error> {
-    let template_strings = load_files_in_dir_to_string(templates_path)?;
+    let template_strings = load_files_in_dir_to_string(templates_path, Some("html"))?;
     let mut templates = HashMap::new();
     for (template_path, template_content) in template_strings {
         let mut template = Template {
@@ -64,21 +64,35 @@ fn parse_placeholders(template_content: &str) -> Vec<Placeholder> {
     placeholders
 }
 
-pub fn fill_template(template: Template, filled_placeholders: HashMap<String, String>) -> String {
-    let mut rendered = String::new();
-    let mut content = template.content.as_str();
-    for placeholder in template.placeholders {
-        rendered.push_str(&content[..placeholder.position.from]);
-        let filled_placeholder = filled_placeholders.get(&placeholder.name).unwrap().as_str();
-        rendered.push_str(filled_placeholder);
-        content = &content[placeholder.position.to + 1..];
+impl Template {
+    pub fn fill_template(&self, filled_placeholders: HashMap<String, String>) -> String {
+        let mut rendered = String::new();
+        let mut content = self.content.as_str();
+        for placeholder in &self.placeholders {
+            rendered.push_str(&content[..placeholder.position.from]);
+            let filled_placeholder = filled_placeholders.get(&placeholder.name).unwrap().as_str();
+            rendered.push_str(filled_placeholder);
+            content = &content[placeholder.position.to + 1..];
+        }
+        rendered.push_str(content);
+        rendered
     }
-    rendered.push_str(content);
-    rendered
 }
 
 pub trait Renderable {
     fn render(&self, templates: &HashMap<String, Template>) -> String;
+}
+
+pub fn render_html_pages(
+    pages: &HashMap<String, impl Renderable>,
+    templates: &HashMap<String, Template>,
+) -> HashMap<String, String> {
+    let mut rendered_pages = HashMap::new();
+    for (page_name, page) in pages {
+        let rendered_page = page.render(templates);
+        rendered_pages.insert(page_name.to_string(), rendered_page);
+    }
+    rendered_pages
 }
 
 #[cfg(test)]
