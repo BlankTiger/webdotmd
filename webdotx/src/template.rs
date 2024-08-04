@@ -83,16 +83,16 @@ pub trait Renderable {
     fn render(&self, templates: &HashMap<String, Template>) -> String;
 }
 
-pub fn render_html_pages(
-    pages: &HashMap<String, impl Renderable>,
+pub fn render(
+    named_renderables: &HashMap<String, impl Renderable>,
     templates: &HashMap<String, Template>,
 ) -> HashMap<String, String> {
-    let mut rendered_pages = HashMap::new();
-    for (page_name, page) in pages {
+    let mut rendered = HashMap::new();
+    for (page_name, page) in named_renderables {
         let rendered_page = page.render(templates);
-        rendered_pages.insert(page_name.to_string(), rendered_page);
+        rendered.insert(page_name.to_string(), rendered_page);
     }
-    rendered_pages
+    rendered
 }
 
 #[cfg(test)]

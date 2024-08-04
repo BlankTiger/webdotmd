@@ -1,5 +1,5 @@
 use libwebdotmd::load_markdown_pages;
-use webdotx::{load_templates, render_html_pages};
+use webdotx::{load_templates, render};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let args = parse_args();
@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_path = std::path::Path::new("output");
     let templates = load_templates(templates_path)?;
     let md_pages = load_markdown_pages(pages_path)?;
-    let html_pages = render_html_pages(&md_pages, &templates);
+    let html_pages = render(&md_pages, &templates);
     dbg!(&templates);
     dbg!(&md_pages);
     dbg!(&html_pages);

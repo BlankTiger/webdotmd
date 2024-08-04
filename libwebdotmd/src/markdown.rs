@@ -101,10 +101,10 @@ impl Renderable for Element {
                     rendered.push_str(&item_rendered);
                 }
                 match list_type {
-                    ListType::Ordered { symbol } => {
+                    ListType::Ordered { symbol: _symbol } => {
                         format!("<ol>{}</ol>", rendered)
                     }
-                    ListType::Unordered { symbol } => {
+                    ListType::Unordered { symbol: _symbol } => {
                         format!("<ul>{}</ul>", rendered)
                     }
                 }
