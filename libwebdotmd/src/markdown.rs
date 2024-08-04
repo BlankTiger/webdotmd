@@ -92,20 +92,31 @@ impl Renderable for Element {
             List { list_type, items } => {
                 let mut rendered = String::new();
                 for item in items {
-                    let mut item_rendered = String::new();
-                    item_rendered.push_str("<li>");
+                    let mut item_content = String::new();
                     for el in item {
-                        item_rendered.push_str(&el.render(templates));
+                        item_content.push_str(&el.render(templates));
                     }
-                    item_rendered.push_str("</li>");
+                    let item_template = templates.get("templates/elements/list_item.html").unwrap();
+                    let item_rendered =
+                        item_template.fill_template(HashMap::from([("item".to_string(), item_content)]));
                     rendered.push_str(&item_rendered);
                 }
                 match list_type {
-                    ListType::Ordered { symbol: _symbol } => {
-                        format!("<ol>{}</ol>", rendered)
+                    ListType::Ordered { symbol } => {
+                        let list_template = templates.get("templates/elements/ordered_list.html").unwrap();
+                        let list_type = html_list_type_from(symbol);
+                        list_template.fill_template(HashMap::from([
+                            ("items".to_string(), rendered),
+                            ("list_type".to_string(), list_type),
+                        ]))
                     }
-                    ListType::Unordered { symbol: _symbol } => {
-                        format!("<ul>{}</ul>", rendered)
+                    ListType::Unordered { symbol } => {
+                        let list_template = templates.get("templates/elements/unordered_list.html").unwrap();
+                        let list_type = html_list_type_from(symbol);
+                        list_template.fill_template(HashMap::from([
+                            ("items".to_string(), rendered),
+                            ("list_type".to_string(), list_type),
+                        ]))
                     }
                 }
             }
@@ -113,6 +124,16 @@ impl Renderable for Element {
                 format!("<pre><code class=\"language-{}\">{}</code></pre>", lang, code)
             }
         }
+    }
+}
+
+fn html_list_type_from(symbol: &str) -> String {
+    match symbol {
+        "-" => "disc".to_string(),
+        "+" => "circle".to_string(),
+        "1." => "decimal".to_string(),
+        "a)" => "lower-roman".to_string(),
+        _ => panic!("Invalid list type"),
     }
 }
 
@@ -288,6 +309,22 @@ fn parse_list_type(s: &str) -> ListType {
     }
     eprintln!("Must always return a valid ListType, didn't for: {}", s);
     panic!();
+}
+
+pub fn write_html_pages(
+    html_pages: &HashMap<String, String>,
+    source_path: &Path,
+    output_path: &Path,
+) -> Result<(), std::io::Error> {
+    let mut source_path = source_path.to_str().unwrap().to_string();
+    source_path.push('/');
+    for (path, html) in html_pages {
+        let path = path.trim_start_matches(&source_path);
+        let mut path = output_path.join(path);
+        path.set_extension("html");
+        std::fs::write(path, html)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
