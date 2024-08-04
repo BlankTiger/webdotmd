@@ -97,7 +97,7 @@ pub fn render_html_pages(
 
 #[cfg(test)]
 mod tests {
-    use super::{fill_template, parse_placeholders, Placeholder, Position, Template};
+    use super::{parse_placeholders, Placeholder, Position, Template};
     use std::collections::HashMap;
 
     #[test]
@@ -145,7 +145,7 @@ mod tests {
                 },
             ],
         };
-        let got = fill_template(template, filled_placeholders);
+        let got = template.fill_template(filled_placeholders);
         let expected = "some text, blanktiger, other text some interesting texttested".to_string();
         assert_eq!(expected, got);
     }
