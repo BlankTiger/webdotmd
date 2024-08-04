@@ -135,10 +135,22 @@ fn parse_block(block: &str) -> Vec<Element> {
         // links
     } else if is_a_list(block) {
         let mut items = vec![];
+        let mut nested_list_lines = vec![];
         for line in block.trim().lines() {
+            // parse nested list
+            if is_indented(line) && is_a_list(line) {
+                let mut line = line.to_string();
+                line.push('\n');
+                nested_list_lines.push(line);
+                continue;
+            }
+            if !nested_list_lines.is_empty() {
+                let nested_list_block = nested_list_lines.iter().map(|s| s.trim_start()).collect::<String>();
+                items.push(parse_block(&nested_list_block));
+                nested_list_lines = vec![];
+            }
             let (_list_symbol, item) = line.split_once(' ').unwrap();
             items.push(parse_block(item.trim()));
-            // if is_indented(line) && is_a_list(line) {}
         }
         let list_type = parse_list_type(block);
         let list = List { list_type, items };
@@ -182,7 +194,12 @@ fn is_a_list(block: &str) -> bool {
     true
 }
 
+fn is_indented(s: &str) -> bool {
+    s.starts_with("    ")
+}
+
 fn parse_list_type(s: &str) -> ListType {
+    let s = s.trim();
     for u_type in UNORDERED_LIST_TYPES {
         if s.starts_with(u_type) {
             return ListType::Unordered {
@@ -490,5 +507,46 @@ a) item 2
     }
 
     #[test]
-    fn test_parse_content_nested_list() {}
+    fn test_parse_content_nested_list() {
+        let content = ":content:
+- item 1
+- item 2:
+    a) item with a link [text](link.com), hurray!
+    a) item 2
+- [text](link.com)";
+        // TODO: work on infinitely nested lists
+        let got = parse_content(content);
+        let expected = Content {
+            elements: vec![Element::List {
+                list_type: ListType::Unordered {
+                    symbol: "-".to_string(),
+                },
+                items: vec![
+                    vec![Element::Text("item 1".to_string())],
+                    vec![Element::Text("item 2:".to_string())],
+                    vec![Element::List {
+                        list_type: ListType::Ordered {
+                            symbol: "a)".to_string(),
+                        },
+                        items: vec![
+                            vec![
+                                Element::Text("item with a link ".to_string()),
+                                Element::Link {
+                                    text: "text".to_string(),
+                                    link: "link.com".to_string(),
+                                },
+                                Element::Text(", hurray!".to_string()),
+                            ],
+                            vec![Element::Text("item 2".to_string())],
+                        ],
+                    }],
+                    vec![Element::Link {
+                        text: "text".to_string(),
+                        link: "link.com".to_string(),
+                    }],
+                ],
+            }],
+        };
+        assert_eq!(expected, got);
+    }
 }
