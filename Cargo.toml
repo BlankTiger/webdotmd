@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "webdotx",
     "libwebdotmd",
-    "webdotmd-cli",
+    "webdotmd",
 ]

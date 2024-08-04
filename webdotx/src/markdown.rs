@@ -1,9 +1,9 @@
+use crate::utils::load_files_in_dir_to_string;
+use crate::{Renderable, Template};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
-use webdotx::utils::load_files_in_dir_to_string;
-use webdotx::{Renderable, Template};
 
 #[derive(Debug)]
 pub struct MarkdownPage {

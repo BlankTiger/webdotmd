@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-pub(crate) fn load_files_in_dir_to_string(
+pub fn load_files_in_dir_to_string(
     templates_path: &Path,
     extension: Option<&str>,
 ) -> Result<Vec<(PathBuf, String)>, std::io::Error> {

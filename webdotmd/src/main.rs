@@ -1,4 +1,5 @@
-use libwebdotmd::{load_markdown_pages, load_templates, render_html_pages};
+use libwebdotmd::load_markdown_pages;
+use webdotx::{load_templates, render_html_pages};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let args = parse_args();
