@@ -239,6 +239,7 @@ pub fn render(
     templates: &HashMap<String, Template>,
 ) -> HashMap<String, String> {
     let mut rendered = HashMap::new();
+    // TODO: probably could parallelize
     for (page_name, page) in named_renderables {
         let rendered_page = page.render(templates);
         rendered.insert(page_name.to_string(), rendered_page);
