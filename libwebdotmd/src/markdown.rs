@@ -13,7 +13,11 @@ pub struct MarkdownPage {
 }
 
 impl Renderable for MarkdownPage {
-    fn render(&self, templates: &HashMap<String, Template>) -> String {
+    fn render(
+        &self,
+        templates: &HashMap<String, Template>,
+        // autofill_funcs
+    ) -> String {
         let mut content = String::new();
         for el in &self.content.elements {
             content.push_str(&el.render(templates));
@@ -23,7 +27,7 @@ impl Renderable for MarkdownPage {
         templates
             .get(&self.metadata.info["template"])
             .expect("Template to be found")
-            .fill_template(filled_placeholders)
+            .fill_template(filled_placeholders, None)
     }
 }
 
@@ -75,20 +79,26 @@ impl Renderable for Element {
             Header { level, elements } => templates
                 .get("templates/elements/header.html")
                 .expect("Header template not found")
-                .fill_template(HashMap::from([
-                    ("level".to_string(), level.to_string()),
-                    (
-                        "content".to_string(),
-                        elements.iter().map(|el| el.render(templates)).collect::<String>(),
-                    ),
-                ])),
+                .fill_template(
+                    HashMap::from([
+                        ("level".to_string(), level.to_string()),
+                        (
+                            "content".to_string(),
+                            elements.iter().map(|el| el.render(templates)).collect::<String>(),
+                        ),
+                    ]),
+                    None,
+                ),
             Link { text, link } => templates
                 .get("templates/elements/link.html")
                 .expect("Link template not found")
-                .fill_template(HashMap::from([
-                    ("text".to_string(), text.to_string()),
-                    ("link".to_string(), link.to_string()),
-                ])),
+                .fill_template(
+                    HashMap::from([
+                        ("text".to_string(), text.to_string()),
+                        ("link".to_string(), link.to_string()),
+                    ]),
+                    None,
+                ),
             List { list_type, items } => {
                 let mut rendered = String::new();
                 for item in items {
@@ -98,25 +108,25 @@ impl Renderable for Element {
                     }
                     let item_template = templates.get("templates/elements/list_item.html").unwrap();
                     let item_rendered =
-                        item_template.fill_template(HashMap::from([("item".to_string(), item_content)]));
+                        item_template.fill_template(HashMap::from([("item".to_string(), item_content)]), None);
                     rendered.push_str(&item_rendered);
                 }
                 match list_type {
                     ListType::Ordered { symbol } => {
                         let list_template = templates.get("templates/elements/ordered_list.html").unwrap();
                         let list_type = html_list_type_from(symbol);
-                        list_template.fill_template(HashMap::from([
-                            ("items".to_string(), rendered),
-                            ("list_type".to_string(), list_type),
-                        ]))
+                        list_template.fill_template(
+                            HashMap::from([("items".to_string(), rendered), ("list_type".to_string(), list_type)]),
+                            None,
+                        )
                     }
                     ListType::Unordered { symbol } => {
                         let list_template = templates.get("templates/elements/unordered_list.html").unwrap();
                         let list_type = html_list_type_from(symbol);
-                        list_template.fill_template(HashMap::from([
-                            ("items".to_string(), rendered),
-                            ("list_type".to_string(), list_type),
-                        ]))
+                        list_template.fill_template(
+                            HashMap::from([("items".to_string(), rendered), ("list_type".to_string(), list_type)]),
+                            None,
+                        )
                     }
                 }
             }
