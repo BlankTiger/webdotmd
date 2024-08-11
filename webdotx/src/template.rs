@@ -184,7 +184,8 @@ fn find_first_placeholder(content: &str) -> ((Option<usize>, Option<usize>), boo
     }
 }
 
-type FuncMap = HashMap<&'static str, &'static dyn Fn() -> String>;
+// TODO: think if this type would be better of as a wrapper type for a HashMap instead of an alias
+pub type FuncMap = HashMap<&'static str, &'static dyn Fn() -> String>;
 
 impl Template {
     /// Fills placeholders in the template with the provided values. If value for a placeholder is
@@ -192,12 +193,11 @@ impl Template {
     pub fn fill_template(
         &self,
         filled_placeholders: HashMap<String, String>,
-        autofill_funcs: Option<FuncMap>,
+        autofill_funcs: &Option<FuncMap>,
     ) -> String {
         let mut builtin_autofill_funcs: HashMap<&str, &dyn Fn() -> String> = HashMap::new();
         builtin_autofill_funcs.insert("hello", &hello);
         builtin_autofill_funcs.insert("curr_year", &curr_year);
-        builtin_autofill_funcs.insert("my_github", &my_github);
         if let Some(funcs) = autofill_funcs {
             builtin_autofill_funcs.extend(funcs);
         }
@@ -231,10 +231,6 @@ fn curr_year() -> String {
     year.to_string()
 }
 
-fn my_github() -> String {
-    "https://github.com/BlankTiger".to_string()
-}
-
 /// Renderable allows for rendering of data structures into a string using provided templates.
 ///
 /// Example use:
@@ -252,19 +248,19 @@ fn my_github() -> String {
 /// }
 ///
 /// impl Renderable for Page {
-///    fn render(&self, templates: &HashMap<String, Template>) -> String {
+///    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &FuncMap) -> String {
 ///        let filled_placeholders = HashMap::from([
 ///            ("name".to_string(), self.name.clone()),
 ///            ("content".to_string(), self.content.clone()),
 ///            ("test_offset".to_string(), self.test_offset.clone()),
 ///        ]);
 ///        let template = templates.get(&self.template_name).unwrap();
-///        template.fill_template(filled_placeholders)
+///        template.fill_template(filled_placeholders, autofill_funcs)
 ///    }
 /// }
 /// ```
 pub trait Renderable {
-    fn render(&self, templates: &HashMap<String, Template>) -> String;
+    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String;
 }
 
 /// Renders all renderables using provided templates. Returns a map of renderable names to rendered
@@ -284,7 +280,7 @@ pub trait Renderable {
 /// }
 ///
 /// impl Renderable for Page {
-///     fn render(&self, templates: &HashMap<String, Template>) -> String {
+///     fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &FuncMap) -> String {
 ///         let filled_placeholders = HashMap::from([
 ///             ("name".to_string(), self.name.clone()),
 ///             ("content".to_string(), self.content.clone()),
@@ -323,12 +319,12 @@ pub trait Renderable {
 pub fn render(
     named_renderables: &HashMap<String, impl Renderable>,
     templates: &HashMap<String, Template>,
-    // autofill_funcs
+    autofill_funcs: &Option<FuncMap>,
 ) -> HashMap<String, String> {
     let mut rendered = HashMap::new();
     // TODO: probably could parallelize
     for (page_name, page) in named_renderables {
-        let rendered_page = page.render(templates);
+        let rendered_page = page.render(templates, autofill_funcs);
         rendered.insert(page_name.to_string(), rendered_page);
     }
     rendered

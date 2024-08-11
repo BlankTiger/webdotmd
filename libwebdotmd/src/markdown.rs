@@ -3,7 +3,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 use webdotx::utils::load_files_in_dir_to_string;
-use webdotx::{Renderable, Template};
+use webdotx::{FuncMap, Renderable, Template};
 
 #[derive(Debug)]
 pub struct MarkdownPage {
@@ -12,22 +12,24 @@ pub struct MarkdownPage {
     content: Content,
 }
 
+impl MarkdownPage {
+    pub fn get_metadata(&self, name: &str) -> Option<&String> {
+        self.metadata.info.get(name)
+    }
+}
+
 impl Renderable for MarkdownPage {
-    fn render(
-        &self,
-        templates: &HashMap<String, Template>,
-        // autofill_funcs
-    ) -> String {
+    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
         let mut content = String::new();
         for el in &self.content.elements {
-            content.push_str(&el.render(templates));
+            content.push_str(&el.render(templates, autofill_funcs));
         }
         let mut filled_placeholders = self.metadata.info.clone();
         filled_placeholders.insert("content".to_string(), content);
         templates
             .get(&self.metadata.info["template"])
             .expect("Template to be found")
-            .fill_template(filled_placeholders, None)
+            .fill_template(filled_placeholders, autofill_funcs)
     }
 }
 
@@ -71,7 +73,7 @@ enum ListType {
 }
 
 impl Renderable for Element {
-    fn render(&self, templates: &HashMap<String, Template>) -> String {
+    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
         use Element::*;
         match self {
             Text(text) => text.to_string(),
@@ -84,10 +86,13 @@ impl Renderable for Element {
                         ("level".to_string(), level.to_string()),
                         (
                             "content".to_string(),
-                            elements.iter().map(|el| el.render(templates)).collect::<String>(),
+                            elements
+                                .iter()
+                                .map(|el| el.render(templates, autofill_funcs))
+                                .collect::<String>(),
                         ),
                     ]),
-                    None,
+                    autofill_funcs,
                 ),
             Link { text, link } => templates
                 .get("templates/elements/link.html")
@@ -97,18 +102,18 @@ impl Renderable for Element {
                         ("text".to_string(), text.to_string()),
                         ("link".to_string(), link.to_string()),
                     ]),
-                    None,
+                    autofill_funcs,
                 ),
             List { list_type, items } => {
                 let mut rendered = String::new();
                 for item in items {
                     let mut item_content = String::new();
                     for el in item {
-                        item_content.push_str(&el.render(templates));
+                        item_content.push_str(&el.render(templates, autofill_funcs));
                     }
                     let item_template = templates.get("templates/elements/list_item.html").unwrap();
-                    let item_rendered =
-                        item_template.fill_template(HashMap::from([("item".to_string(), item_content)]), None);
+                    let item_rendered = item_template
+                        .fill_template(HashMap::from([("item".to_string(), item_content)]), autofill_funcs);
                     rendered.push_str(&item_rendered);
                 }
                 match list_type {
@@ -117,7 +122,7 @@ impl Renderable for Element {
                         let list_type = html_list_type_from(symbol);
                         list_template.fill_template(
                             HashMap::from([("items".to_string(), rendered), ("list_type".to_string(), list_type)]),
-                            None,
+                            autofill_funcs,
                         )
                     }
                     ListType::Unordered { symbol } => {
@@ -125,7 +130,7 @@ impl Renderable for Element {
                         let list_type = html_list_type_from(symbol);
                         list_template.fill_template(
                             HashMap::from([("items".to_string(), rendered), ("list_type".to_string(), list_type)]),
-                            None,
+                            autofill_funcs,
                         )
                     }
                 }
