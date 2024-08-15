@@ -77,7 +77,7 @@ impl Renderable for Element {
         use Element::*;
         match self {
             Text(text) => text.to_string(),
-            Break => "<br />\n".to_string(),
+            Break => "<br>".to_string(),
             Header { level, elements } => templates
                 .get("templates/elements/header.html")
                 .expect("Header template not found")
@@ -109,7 +109,7 @@ impl Renderable for Element {
                 for item in items {
                     let mut item_content = String::new();
                     for el in item {
-                        item_content.push_str(&el.render(templates, autofill_funcs));
+                        item_content.push_str(&el.render(templates, autofill_funcs).replace("\n", ""));
                     }
                     let item_template = templates.get("templates/elements/list_item.html").unwrap();
                     let item_rendered = item_template
@@ -144,10 +144,10 @@ impl Renderable for Element {
 
 fn html_list_type_from(symbol: &str) -> String {
     match symbol {
-        "-" => "disc".to_string(),
-        "+" => "circle".to_string(),
-        "1." => "decimal".to_string(),
-        "a)" => "lower-roman".to_string(),
+        "-" => "list-disc".to_string(),
+        "+" => "list-[circle]".to_string(),
+        "1." => "list-decimal".to_string(),
+        "a)" => "list-[lower-roman]".to_string(),
         _ => panic!("Invalid list type"),
     }
 }
@@ -275,7 +275,7 @@ fn parse_block(block: &str) -> Vec<Element> {
             elements.extend(parse_block(rest_of_block));
         }
     } else {
-        elements.push(Text(block.trim().to_string()));
+        elements.push(Text(block.to_string()));
     }
     elements
 }

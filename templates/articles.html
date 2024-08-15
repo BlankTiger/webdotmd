@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="{{ %default_theme% }}">
+
+<head>
+    <title>{{ $title$ }}</title>
+    <link href="./output.css" rel="stylesheet">
+    {{ %favicon_trash% }}
+</head>
+
+<body class="{{ %body_classes% }}">
+    <div class="{{ %tw_classes_push_footer% }}">
+        <header>
+            {{ %navbar% }}
+        </header>
+        {{ %main_opening% }}
+        <div class="py-6">
+            {{ %article_entry_list% }}
+            {{ $content$ }}
+        </div>
+        {{ %main_closing% }}
+        {{ %footer% }}
+    </div>
+</body>
+
+</html>

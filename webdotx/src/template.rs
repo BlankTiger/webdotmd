@@ -115,6 +115,17 @@ pub fn load_templates(
     Ok(templates)
 }
 
+pub fn load_template(template_path: &Path) -> Result<Template, std::io::Error> {
+    let template_string = std::fs::read_to_string(template_path)?;
+    let mut template = Template {
+        content: template_string.clone(),
+        placeholders: Vec::new(),
+    };
+    let placeholders = parse_placeholders(&template_string);
+    template.placeholders.extend(placeholders);
+    Ok(template)
+}
+
 fn parse_placeholders(template_content: &str) -> Vec<Placeholder> {
     let mut placeholders = vec![];
     let mut content = template_content;
@@ -237,7 +248,7 @@ fn curr_year() -> String {
 ///
 /// ```rust
 /// use std::collections::HashMap;
-/// use webdotx::{Renderable, Template};
+/// use webdotx::{Renderable, Template, FuncMap};
 ///
 /// struct Page {
 ///    name: String,
@@ -248,7 +259,7 @@ fn curr_year() -> String {
 /// }
 ///
 /// impl Renderable for Page {
-///    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &FuncMap) -> String {
+///    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
 ///        let filled_placeholders = HashMap::from([
 ///            ("name".to_string(), self.name.clone()),
 ///            ("content".to_string(), self.content.clone()),
@@ -325,7 +336,7 @@ pub fn render(
     // TODO: probably could parallelize
     for (page_name, page) in named_renderables {
         let rendered_page = page.render(templates, autofill_funcs);
-        rendered.insert(page_name.to_string(), rendered_page);
+        rendered.insert(page_name.to_string(), rendered_page.replace("\n", ""));
     }
     rendered
 }
@@ -396,7 +407,7 @@ mod tests {
                 },
             ],
         };
-        let got = template.fill_template(filled_placeholders, None);
+        let got = template.fill_template(filled_placeholders, &None);
         let expected = "some text, blanktiger, other text some interesting texttested".to_string();
         assert_eq!(expected, got);
     }

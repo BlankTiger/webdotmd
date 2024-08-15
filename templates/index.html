@@ -1,18 +1,30 @@
-<html>
+<!DOCTYPE html>
+<html class="{{ %default_theme% }}">
 
 <head>
     <title>{{ $title$ }}</title>
+    <link href="./output.css" rel="stylesheet">
+    {{ %favicon_trash% }}
 </head>
 
-<body bgcolor="181818">
-    <header>
-        <img src="photo.jpg" alt="photo of me">
-        <h1>Maciej Urban's Homepage</h1>
-        <a href="{{ %my_github% }}">GitHub</a>
-    </header>
-    <hr />
-    {{ $content$ }}
-    <footer>© Maciej Urban {{ %curr_year% }}</footer>
+<body class="{{ %body_classes% }}">
+    <div class="{{ %tw_classes_push_footer% }}">
+        <header>
+            {{ %navbar% }}
+            <div class="flex justify-center items-center min-h-48 h-64 max-h-80">
+                <div class="flex flex-col h-full p-8">
+                    <img src="photo.jpg" alt="photo of me" class="max-h-full shadow-lg rounded-lg">
+                </div>
+                <p class="text-6xl text-center p-4 font-medium text-l-text-accent dark:text-d-text-accent">Maciej Urban's<br>Homepage</p>
+            </div>
+            <!-- <hr /> -->
+        </header>
+        {{ %main_opening% }}
+            {{ $content$ }}
+            <div class="pb-10"></div>
+        {{ %main_closing% }}
+        {{ %footer% }}
+    </div>
 </body>
 
 </html>
