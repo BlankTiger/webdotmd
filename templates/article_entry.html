@@ -9,18 +9,34 @@
 </head>
 
 <body class="{{ %body_classes% }}">
-    <div class="{{ %tw_classes_push_footer% }}">
+    <div class=" {{ %tw_classes_push_footer% }}">
         <header>
             {{ %navbar% }}
         </header>
-        {{ %main_opening% }}
-        {{ $content$ }}
-        <div class="pb-10">
-        </div>
-        {{ %main_closing% }}
+        <div class="flex flex-row">
+            <div class="flex-1"></div>
+            <div class="">
+                {{ %main_opening% }}
+                {{ $content$ }}
+                <div class="pb-10">
+                </div>
+                {{ %main_closing% }}
+            </div>
 
+            <div class="flex-1">
+                <div class="
+            xl:block hidden w-fit border rounded-md bg-l-bg-secondary
+            dark:bg-d-bg-secondary h-fit m-4 px-2 py-4 sticky top-20
+            right-[2%] text-xs">
+                    <h1 class="text-lg">Table of contents:</h1><br>
+                    {{ $outline$ }}
+                </div>
+            </div>
+        </div>
         {{ %footer% }}
     </div>
 </body>
+
+</html>
 
 </html>

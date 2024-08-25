@@ -18,14 +18,43 @@ impl MarkdownPage {
     }
 }
 
+fn header_to_text(header: &str) -> String {
+    // dbg!(header);
+    // let (_, header) = header.split_once("</a>").unwrap();
+    // println!("{header}");
+    header
+        .replace(">", "")
+        .replace("<", "")
+        .replace("\n", "")
+        .replace("\"", "'")
+}
+
 impl Renderable for MarkdownPage {
     fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
         let mut content = String::new();
+        let mut outline = String::from(r#"<ul class="list-disc list-inside">"#);
         for el in &self.content.elements {
-            content.push_str(&el.render(templates, autofill_funcs));
+            let rendered = &el.render(templates, autofill_funcs);
+            content.push_str(rendered);
+            if let Element::Header { level, elements } = el {
+                let content = elements
+                    .iter()
+                    .map(|el| el.render(templates, autofill_funcs))
+                    .collect::<String>();
+                let text = &header_to_text(&content);
+                outline.push_str("<li>");
+                outline.push_str("<a href=\"#");
+                outline.push_str(text);
+                outline.push_str("\">");
+                outline.push_str(text);
+                outline.push_str("</a></li><br>\n");
+            }
+            println!("{outline}");
         }
+        outline.push_str("</ul>");
         let mut filled_placeholders = self.metadata.info.clone();
         filled_placeholders.insert("content".to_string(), content);
+        filled_placeholders.insert("outline".to_string(), outline);
         templates
             .get(&self.metadata.info["template"])
             .expect("Template to be found")
@@ -78,22 +107,25 @@ impl Renderable for Element {
         match self {
             Text(text) => format!("{text}"),
             Break => r#"<div class="py-2"></div>"#.to_string(),
-            Header { level, elements } => templates
-                .get("templates/elements/header.html")
-                .expect("Header template not found")
-                .fill_template(
-                    HashMap::from([
-                        ("level".to_string(), level.to_string()),
-                        (
-                            "content".to_string(),
-                            elements
-                                .iter()
-                                .map(|el| el.render(templates, autofill_funcs))
-                                .collect::<String>(),
-                        ),
-                    ]),
-                    autofill_funcs,
-                ),
+            Header { level, elements } => {
+                let content = elements
+                    .iter()
+                    .map(|el| el.render(templates, autofill_funcs))
+                    .collect::<String>();
+                let text = header_to_text(&content);
+                let rendered = templates
+                    .get("templates/elements/header.html")
+                    .expect("Header template not found")
+                    .fill_template(
+                        HashMap::from([
+                            ("level".to_string(), level.to_string()),
+                            ("content".to_string(), content.to_string()),
+                            ("text".to_string(), content),
+                        ]),
+                        autofill_funcs,
+                    );
+                rendered
+            }
             Link { text, link } => templates
                 .get("templates/elements/link.html")
                 .expect("Link template not found")
