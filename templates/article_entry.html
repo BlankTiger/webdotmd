@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="{{ %default_theme% }}">
+<html class="{{ %default_theme% }}" id="html">
 
 <head>
     <title>{{ $title$ }}</title>
@@ -29,7 +29,9 @@
             dark:bg-d-bg-secondary h-fit m-4 px-2 py-4 sticky top-20
             right-[2%] text-xs">
                     <h1 class="text-lg">Table of contents:</h1><br>
-                    {{ $outline$ }}
+                    <ul class="list-disc list-inside flex flex-col gap-1">
+                        {{ $outline$ }}
+                    </ul>
                 </div>
             </div>
         </div>

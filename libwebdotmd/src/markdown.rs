@@ -7,7 +7,7 @@ use webdotx::{FuncMap, Renderable, Template};
 
 #[derive(Debug)]
 pub struct MarkdownPage {
-    /// starts from first line in the file and ends on line :content:
+    /// starts from first line in the file and ends on line ------
     metadata: Metadata,
     content: Content,
 }
@@ -19,24 +19,22 @@ impl MarkdownPage {
 }
 
 fn header_to_text(header: &str) -> String {
-    // dbg!(header);
-    // let (_, header) = header.split_once("</a>").unwrap();
-    // println!("{header}");
     header
         .replace(">", "")
         .replace("<", "")
         .replace("\n", "")
         .replace("\"", "'")
+    // .replace(" ", "_")
 }
 
 impl Renderable for MarkdownPage {
     fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
         let mut content = String::new();
-        let mut outline = String::from(r#"<ul class="list-disc list-inside">"#);
+        let mut outline = String::new();
         for el in &self.content.elements {
             let rendered = &el.render(templates, autofill_funcs);
             content.push_str(rendered);
-            if let Element::Header { level, elements } = el {
+            if let Element::Header { level: _, elements } = el {
                 let content = elements
                     .iter()
                     .map(|el| el.render(templates, autofill_funcs))
@@ -49,9 +47,7 @@ impl Renderable for MarkdownPage {
                 outline.push_str(text);
                 outline.push_str("</a></li><br>\n");
             }
-            println!("{outline}");
         }
-        outline.push_str("</ul>");
         let mut filled_placeholders = self.metadata.info.clone();
         filled_placeholders.insert("content".to_string(), content);
         filled_placeholders.insert("outline".to_string(), outline);
@@ -105,14 +101,13 @@ impl Renderable for Element {
     fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
         use Element::*;
         match self {
-            Text(text) => format!("{text}"),
-            Break => r#"<div class="py-2"></div>"#.to_string(),
+            Text(text) => text.to_string(),
+            Break => r#"<div class="py-1.5"></div>"#.to_string(),
             Header { level, elements } => {
                 let content = elements
                     .iter()
                     .map(|el| el.render(templates, autofill_funcs))
                     .collect::<String>();
-                let text = header_to_text(&content);
                 let rendered = templates
                     .get("templates/elements/header.html")
                     .expect("Header template not found")
@@ -120,7 +115,7 @@ impl Renderable for Element {
                         HashMap::from([
                             ("level".to_string(), level.to_string()),
                             ("content".to_string(), content.to_string()),
-                            ("text".to_string(), content),
+                            ("text".to_string(), header_to_text(&content)),
                         ]),
                         autofill_funcs,
                     );
@@ -206,7 +201,7 @@ pub fn load_markdown_pages(pages_path: &Path) -> Result<HashMap<String, Markdown
 fn parse_metadata(content: &str) -> Metadata {
     let mut info = HashMap::new();
     for line in content.lines() {
-        if line == ":content:" {
+        if line == "------" {
             break;
         }
         // allow breaks between pairs to allow grouping of metadata
@@ -226,7 +221,7 @@ fn parse_metadata(content: &str) -> Metadata {
 }
 
 fn parse_content(content: &str) -> Content {
-    let start_of_content = content.find(":content:\n").unwrap() + ":content:\n".len();
+    let start_of_content = content.find("------\n").unwrap() + "------\n".len();
     let content = &content[start_of_content..];
     let content = content.replace(" -- ", " — ");
     let mut elements = vec![];
@@ -281,8 +276,6 @@ fn parse_block(block: &str) -> Vec<Element> {
         };
         elements.push(header);
     } else if is_code(block) {
-        // BUG: make it so that a code block is parsed entirely as a single element, otherwise
-        // there cannot be a line break in a code block
         let block = block.trim();
         let (_, lang) = block.lines().next().unwrap().split_once("```").unwrap();
         let code = block
@@ -421,7 +414,7 @@ template: template.html
 author: blanktiger
 
 key: value
-:content:";
+------";
         let got = parse_metadata(content);
         let expected = Metadata {
             info: HashMap::from([
@@ -438,13 +431,13 @@ key: value
     #[should_panic]
     fn test_template_not_in_metadata() {
         let content = "title: ayaya
-:content:";
+------";
         parse_metadata(content);
     }
 
     #[test]
     fn test_parse_content_text() {
-        let content = ":content:
+        let content = "------
 Some random text.";
         let got = parse_content(content);
         let expected = Content {
@@ -455,7 +448,7 @@ Some random text.";
 
     #[test]
     fn test_parse_content_blocks_of_text() {
-        let content = ":content:
+        let content = "------
 Some random text.
 
 Some other random text.";
@@ -472,7 +465,7 @@ Some other random text.";
 
     #[test]
     fn test_parse_content_header() {
-        let content = ":content:
+        let content = "------
 # Header
 
 ## Header
@@ -509,7 +502,7 @@ Some other random text.";
 
     #[test]
     fn test_parse_content_text_with_link() {
-        let content = ":content:
+        let content = "------
 Some text with a link: [link text](coolpage.com). Cool.";
         let got = parse_content(content);
         let expected = Content {
@@ -527,7 +520,7 @@ Some text with a link: [link text](coolpage.com). Cool.";
 
     #[test]
     fn test_parse_content_header_with_link() {
-        let content = ":content:
+        let content = "------
 # Some text with a link: [link text](coolpage.com). Cool.";
         let got = parse_content(content);
         let expected = Content {
@@ -606,7 +599,7 @@ a) Item 2";
 
     #[test]
     fn test_parse_content_list() {
-        let content = ":content:
+        let content = "------
 - item 1
 - item 2
 
@@ -699,7 +692,7 @@ a) item 2
 
     #[test]
     fn test_parse_content_nested_list() {
-        let content = ":content:
+        let content = "------
 - item 1
 - item 2:
     a) item with a link [text](link.com), hurray!
@@ -743,7 +736,7 @@ a) item 2
 
     #[test]
     fn test_parse_content_code() {
-        let content = ":content:
+        let content = "------
 ```rust
 fn hello_world() -> ! {
     while true {}

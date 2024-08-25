@@ -77,10 +77,20 @@ fn create_navbar() -> String {
     format!(
         r##"<nav class="flex justify-between items-center p-4 px-8 max-h-16 bg-l-bg-accent dark:bg-d-bg-accent">
 <a href="https://maciejurban.dev"><img src="website-logo.svg" class="object-contain w-20"/></a>
-<div class="flex justify-between w-60">
+<div class="flex justify-between gap-6">
     <a href="index.html" class="{link_classes}">Home</a>
     <a href="articles.html" class="{link_classes}">Articles</a>
     <a href="https://github.com/BlankTiger" class="{link_classes}">GitHub</a>
+    
+    <div>
+        <label class="inline-flex items-center cursor-pointer">
+          <input id="themeToggle" type="checkbox" value="" class="sr-only peer" checked>
+          <div class="relative w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+        </label>
+    </div>
+
+    <script src="ThemeToggle.js"></script>
+    <script src="PresetTheme.js" strategy="beforeInteractive"></script>
 </div>
 </nav>
 <hr/>
@@ -175,7 +185,7 @@ fn get_body_classes() -> String {
 }
 
 fn get_default_theme() -> String {
-    String::from("dark")
+    String::from("")
 }
 
 fn clear_output_directory(output_dir: Option<&Path>) -> Result<(), std::io::Error> {
