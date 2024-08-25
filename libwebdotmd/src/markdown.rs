@@ -76,8 +76,8 @@ impl Renderable for Element {
     fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
         use Element::*;
         match self {
-            Text(text) => text.to_string(),
-            Break => "<br>".to_string(),
+            Text(text) => format!("{text}"),
+            Break => r#"<div class="py-2"></div>"#.to_string(),
             Header { level, elements } => templates
                 .get("templates/elements/header.html")
                 .expect("Header template not found")
@@ -136,7 +136,14 @@ impl Renderable for Element {
                 }
             }
             Code { lang, code } => {
-                format!("<pre><code class=\"language-{}\">{}</code></pre>", lang, code)
+                let code_template = templates.get("templates/elements/code.html").unwrap();
+                code_template.fill_template(
+                    HashMap::from([
+                        ("lang".to_string(), lang.to_string()),
+                        ("code".to_string(), code.to_string()),
+                    ]),
+                    autofill_funcs,
+                )
             }
         }
     }
@@ -189,10 +196,36 @@ fn parse_metadata(content: &str) -> Metadata {
 fn parse_content(content: &str) -> Content {
     let start_of_content = content.find(":content:\n").unwrap() + ":content:\n".len();
     let content = &content[start_of_content..];
+    let content = content.replace(" -- ", " — ");
     let mut elements = vec![];
     let blocks = content.split("\n\n");
+    let mut _blocks = Vec::new();
+    let mut _block = String::new();
+    let mut in_code_block = false;
     for block in blocks {
-        let block_elements = parse_block(block);
+        if in_code_block && block.ends_with("```") {
+            _block.push_str("\n\n");
+            _block.push_str(block);
+            _blocks.push(_block);
+            _block = String::new();
+            in_code_block = false;
+            continue;
+        } else if in_code_block {
+            _block.push_str("\n\n");
+            _block.push_str(block);
+            continue;
+        }
+        if block.starts_with("```") && block.ends_with("```") {
+        } else if block.starts_with("```") {
+            in_code_block = true;
+            _block.push_str(block);
+            continue;
+        }
+
+        _blocks.push(block.to_string());
+    }
+    for block in _blocks {
+        let block_elements = parse_block(&block);
         elements.extend(block_elements);
         elements.push(Element::Break);
     }
@@ -216,6 +249,8 @@ fn parse_block(block: &str) -> Vec<Element> {
         };
         elements.push(header);
     } else if is_code(block) {
+        // BUG: make it so that a code block is parsed entirely as a single element, otherwise
+        // there cannot be a line break in a code block
         let block = block.trim();
         let (_, lang) = block.lines().next().unwrap().split_once("```").unwrap();
         let code = block

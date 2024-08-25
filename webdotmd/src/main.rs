@@ -25,6 +25,7 @@ fn create_autofill_funcs() -> FuncMap {
     autofill_funcs.insert("footer", &create_footer);
     autofill_funcs.insert("article_entry_list", &create_article_entry_list);
     autofill_funcs.insert("favicon_trash", &create_favicon_trash);
+    autofill_funcs.insert("code_highlighting", &get_code_highlighting);
     autofill_funcs.insert("tw_classes_push_footer", &get_classes_to_push_footer_down);
     autofill_funcs.insert("link_classes", &get_link_classes);
     autofill_funcs.insert("body_classes", &get_body_classes);
@@ -33,6 +34,27 @@ fn create_autofill_funcs() -> FuncMap {
     autofill_funcs.insert("main_closing", &main_closing);
 
     autofill_funcs
+}
+
+fn get_code_highlighting() -> String {
+    r##"
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/tokyo-night-dark.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/go.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/rust.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/bash.min.js"></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/toml.min.js"></script> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/lua.min.js"></script>
+<script src="./HLJSLanguageDisplayPlugin.js"></script>
+<script>
+hljs.addPlugin(new HLJSLanguageDisplayPlugin());
+hljs.highlightAll();
+</script>
+"##.to_string()
 }
 
 fn main_opening() -> String {

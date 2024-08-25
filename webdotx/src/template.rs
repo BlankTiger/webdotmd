@@ -336,9 +336,34 @@ pub fn render(
     // TODO: probably could parallelize
     for (page_name, page) in named_renderables {
         let rendered_page = page.render(templates, autofill_funcs);
-        rendered.insert(page_name.to_string(), rendered_page.replace("\n", ""));
+        let page_without_newlines = remove_newlines(&rendered_page);
+        rendered.insert(page_name.to_string(), page_without_newlines);
     }
     rendered
+}
+
+fn remove_newlines(page: &str) -> String {
+    let has_pre = page.contains("<pre");
+    if !has_pre {
+        return page.replace("\n", "");
+    }
+    let mut page = page;
+    let mut res = String::new();
+    while !page.is_empty() {
+        let has_pre = page.contains("<pre");
+        if !has_pre {
+            res.push_str(page);
+            break;
+        }
+        let (before_pre, pre) = page.split_once("<pre").unwrap();
+        let (pre_block, after_pre) = pre.split_once("</pre>").unwrap();
+        res.push_str(&before_pre.replace("\n", ""));
+        res.push_str("<pre");
+        res.push_str(pre_block);
+        res.push_str("</pre>");
+        page = after_pre;
+    }
+    res
 }
 
 #[cfg(test)]
