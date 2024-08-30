@@ -28,16 +28,24 @@ fn header_to_text(header: &str) -> String {
 }
 
 impl Renderable for MarkdownPage {
-    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
+    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> Option<String> {
+        if let Some(wip) = self.get_metadata("WIP") {
+            if wip == "true" {
+                return None;
+            }
+        }
         let mut content = String::new();
         let mut outline = String::new();
         for el in &self.content.elements {
             let rendered = &el.render(templates, autofill_funcs);
+            let Some(rendered) = rendered else {
+                continue;
+            };
             content.push_str(rendered);
             if let Element::Header { level: _, elements } = el {
                 let content = elements
                     .iter()
-                    .map(|el| el.render(templates, autofill_funcs))
+                    .map(|el| el.render(templates, autofill_funcs).unwrap())
                     .collect::<String>();
                 let text = &header_to_text(&content);
                 outline.push_str("<li>");
@@ -51,10 +59,12 @@ impl Renderable for MarkdownPage {
         let mut filled_placeholders = self.metadata.info.clone();
         filled_placeholders.insert("content".to_string(), content);
         filled_placeholders.insert("outline".to_string(), outline);
-        templates
-            .get(&self.metadata.info["template"])
-            .expect("Template to be found")
-            .fill_template(filled_placeholders, autofill_funcs)
+        Some(
+            templates
+                .get(&self.metadata.info["template"])
+                .expect("Template to be found")
+                .fill_template(filled_placeholders, autofill_funcs),
+        )
     }
 }
 
@@ -85,6 +95,8 @@ enum Element {
         list_type: ListType,
         items: Vec<Vec<Element>>,
     },
+    // BUG: for some reason when code block is the last thing in a markdown file then it isn't
+    // properly rendered into html (it's missing from the page)
     Code {
         lang: String,
         code: String,
@@ -98,15 +110,15 @@ enum ListType {
 }
 
 impl Renderable for Element {
-    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
+    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> Option<String> {
         use Element::*;
-        match self {
+        Some(match self {
             Text(text) => text.to_string(),
             Break => r#"<div class="py-1.5"></div>"#.to_string(),
             Header { level, elements } => {
                 let content = elements
                     .iter()
-                    .map(|el| el.render(templates, autofill_funcs))
+                    .map(|el| el.render(templates, autofill_funcs).unwrap())
                     .collect::<String>();
                 let rendered = templates
                     .get("templates/elements/header.html")
@@ -136,7 +148,7 @@ impl Renderable for Element {
                 for item in items {
                     let mut item_content = String::new();
                     for el in item {
-                        item_content.push_str(&el.render(templates, autofill_funcs).replace("\n", ""));
+                        item_content.push_str(&el.render(templates, autofill_funcs).unwrap().replace("\n", ""));
                     }
                     let item_template = templates.get("templates/elements/list_item.html").unwrap();
                     let item_rendered = item_template
@@ -172,7 +184,7 @@ impl Renderable for Element {
                     autofill_funcs,
                 )
             }
-        }
+        })
     }
 }
 

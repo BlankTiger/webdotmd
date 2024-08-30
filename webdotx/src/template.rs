@@ -259,19 +259,19 @@ fn curr_year() -> String {
 /// }
 ///
 /// impl Renderable for Page {
-///    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String {
+///    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> Option<String> {
 ///        let filled_placeholders = HashMap::from([
 ///            ("name".to_string(), self.name.clone()),
 ///            ("content".to_string(), self.content.clone()),
 ///            ("test_offset".to_string(), self.test_offset.clone()),
 ///        ]);
 ///        let template = templates.get(&self.template_name).unwrap();
-///        template.fill_template(filled_placeholders, autofill_funcs)
+///        Some(template.fill_template(filled_placeholders, autofill_funcs))
 ///    }
 /// }
 /// ```
 pub trait Renderable {
-    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> String;
+    fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> Option<String>;
 }
 
 /// Renders all renderables using provided templates. Returns a map of renderable names to rendered
@@ -336,6 +336,9 @@ pub fn render(
     // TODO: probably could parallelize
     for (page_name, page) in named_renderables {
         let rendered_page = page.render(templates, autofill_funcs);
+        let Some(rendered_page) = rendered_page else {
+            continue;
+        };
         let page_without_newlines = remove_newlines(&rendered_page);
         rendered.insert(page_name.to_string(), page_without_newlines);
     }

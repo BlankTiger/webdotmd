@@ -47,6 +47,7 @@ fn get_code_highlighting() -> String {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/go.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/rust.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/json.min.js"></script>
 <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/toml.min.js"></script> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/lua.min.js"></script>
 <script src="./HLJSLanguageDisplayPlugin.js"></script>
@@ -78,8 +79,8 @@ fn create_navbar() -> String {
         r##"<nav class="flex justify-between items-center p-4 px-8 max-h-16 bg-l-bg-accent dark:bg-d-bg-accent">
 <a href="https://maciejurban.dev"><img src="website-logo.svg" class="object-contain w-20"/></a>
 <div class="flex justify-between gap-6">
-    <a href="index.html" class="{link_classes}">Home</a>
-    <a href="articles.html" class="{link_classes}">Articles</a>
+    <a href="/" class="{link_classes}">Home</a>
+    <a href="articles" class="{link_classes}">Articles</a>
     <a href="https://github.com/BlankTiger" class="{link_classes}">GitHub</a>
     
     <div>
@@ -111,8 +112,8 @@ fn create_footer() -> String {
     // TODO: fix how footer is positioned with css grid
     r#"
 <footer class="w-full bg-l-bg-accent dark:bg-d-bg-accent">
-    <hr/>
-    <div class="p-4 px-8">© Maciej Urban 2024</div>
+<hr/>
+<div class="p-4 px-8">© Maciej Urban 2024</div>
 </footer>"#
         .to_string()
 }
@@ -132,6 +133,11 @@ fn create_article_entry_list() -> String {
     for (name, page) in md_pages {
         if let Some(template_name) = page.get_metadata("template") {
             if template_name == "templates/article_entry.html" {
+                if let Some(wip) = page.get_metadata("WIP") {
+                    if wip == "true" {
+                        continue;
+                    }
+                }
                 let (_, href) = name.split_once('/').unwrap();
                 let href = href.replace(".md", ".html");
                 let page_title = page.get_metadata("title").unwrap();
@@ -185,7 +191,7 @@ fn get_body_classes() -> String {
 }
 
 fn get_default_theme() -> String {
-    String::from("")
+    String::from("dark")
 }
 
 fn clear_output_directory(output_dir: Option<&Path>) -> Result<(), std::io::Error> {
