@@ -196,7 +196,7 @@ fn find_first_placeholder(content: &str) -> ((Option<usize>, Option<usize>), boo
 }
 
 // TODO: think if this type would be better of as a wrapper type for a HashMap instead of an alias
-pub type FuncMap = HashMap<&'static str, &'static dyn Fn() -> String>;
+pub type FuncMap = HashMap<&'static str, &'static dyn Fn() -> &'static str>;
 
 impl Template {
     /// Fills placeholders in the template with the provided values. If value for a placeholder is
@@ -206,7 +206,7 @@ impl Template {
         filled_placeholders: HashMap<String, String>,
         autofill_funcs: &Option<FuncMap>,
     ) -> String {
-        let mut builtin_autofill_funcs: HashMap<&str, &dyn Fn() -> String> = HashMap::new();
+        let mut builtin_autofill_funcs: FuncMap = HashMap::new();
         builtin_autofill_funcs.insert("hello", &hello);
         builtin_autofill_funcs.insert("curr_year", &curr_year);
         if let Some(funcs) = autofill_funcs {
@@ -222,9 +222,9 @@ impl Template {
                 let func = &builtin_autofill_funcs.get(name.as_str()).unwrap();
                 func()
             } else {
-                filled_placeholders.get(name).unwrap().to_string()
+                filled_placeholders.get(name).unwrap()
             };
-            rendered.push_str(&filled_placeholder);
+            rendered.push_str(filled_placeholder);
             content = &content[placeholder.position.to + 1..];
         }
         rendered.push_str(content);
@@ -232,14 +232,15 @@ impl Template {
     }
 }
 
-fn hello() -> String {
-    "hello".to_string()
+fn hello() -> &'static str {
+    "hello"
 }
 
-fn curr_year() -> String {
+fn curr_year() -> &'static str {
     let date_now = chrono::Local::now().date_naive().to_string();
     let (year, _) = date_now.split_once("-").unwrap();
-    year.to_string()
+    let year = Box::from(year);
+    Box::leak(year)
 }
 
 /// Renderable allows for rendering of data structures into a string using provided templates.

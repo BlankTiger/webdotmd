@@ -26,6 +26,9 @@ fn create_autofill_funcs() -> FuncMap {
     autofill_funcs.insert("article_entry_list", &create_article_entry_list);
     autofill_funcs.insert("favicon_trash", &create_favicon_trash);
     autofill_funcs.insert("code_highlighting", &get_code_highlighting);
+    // TODO: add an ability to specify features for pages via tagging in metadata, for example:
+    // `features: math, code`
+    autofill_funcs.insert("mathjax", &get_mathjax);
     autofill_funcs.insert("tw_classes_push_footer", &get_classes_to_push_footer_down);
     autofill_funcs.insert("link_classes", &get_link_classes);
     autofill_funcs.insert("body_classes", &get_body_classes);
@@ -36,7 +39,29 @@ fn create_autofill_funcs() -> FuncMap {
     autofill_funcs
 }
 
-fn get_code_highlighting() -> String {
+fn get_mathjax() -> &'static str {
+    r##"
+    <script>
+        MathJax = {
+            chtml: {
+                scale: 1,
+                minScale: 1,
+                exFactor: 1,
+                matchFontHeight: true
+            },
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            },
+            loader: { load: ["input/tex", "output/chtml"] }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3.0.0/es5/tex-chtml.js">
+    </script>
+    "##
+}
+
+fn get_code_highlighting() -> &'static str {
     r##"
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,32 +80,31 @@ fn get_code_highlighting() -> String {
 hljs.addPlugin(new HLJSLanguageDisplayPlugin());
 hljs.highlightAll();
 </script>
-"##.to_string()
+"##
 }
 
-fn main_opening() -> String {
+fn main_opening() -> &'static str {
     r##"<main class="w-full flex justify-center text-justify py-4 text-base leading-relaxed h-fit">
 <div class="flex flex-col justify-start items-center max-w-prose min-w-[40%] bg-l-bg-secondary dark:bg-d-bg-secondary rounded-xl border">
 <div class="w-5/6">
-"##.to_string()
+"##
 }
 
-fn main_closing() -> String {
+fn main_closing() -> &'static str {
     "</div>
 </div>
 </main>
 "
-    .to_string()
 }
 
-fn create_navbar() -> String {
+fn create_navbar() -> &'static str {
     let link_classes = get_link_classes();
-    format!(
+    let navbar = Box::from(format!(
         r##"<nav class="flex justify-between items-center p-4 px-8 max-h-16 bg-l-bg-accent dark:bg-d-bg-accent">
 <a href="https://maciejurban.dev"><img src="website-logo.svg" class="object-contain w-20"/></a>
 <div class="flex justify-between gap-6">
     <a href="/" class="{link_classes}">Home</a>
-    <a href="articles" class="{link_classes}">Articles</a>
+    <a href="articles.html" class="{link_classes}">Articles</a>
     <a href="https://github.com/BlankTiger" class="{link_classes}">GitHub</a>
     
     <div>
@@ -96,18 +120,18 @@ fn create_navbar() -> String {
 </nav>
 <hr/>
 "##
-    )
+    ));
+    Box::leak(navbar)
 }
 
-fn get_link_classes() -> String {
+fn get_link_classes() -> &'static str {
     "text-l-accent 
     hover:text-l-accent-secondary 
     dark:text-d-accent 
     dark:hover:text-d-accent-secondary"
-        .to_string()
 }
 
-fn create_footer() -> String {
+fn create_footer() -> &'static str {
     // TODO: think on how to resolve placeholders in autofill_funcs
     // TODO: fix how footer is positioned with css grid
     r#"
@@ -115,7 +139,6 @@ fn create_footer() -> String {
 <hr/>
 <div class="p-4 px-8">© Maciej Urban 2024</div>
 </footer>"#
-        .to_string()
 }
 
 struct CardWithDate {
@@ -123,7 +146,7 @@ struct CardWithDate {
     date: chrono::NaiveDate,
 }
 
-fn create_article_entry_list() -> String {
+fn create_article_entry_list() -> &'static str {
     // let templates_path = Path::new("templates");
     // let templates = load_templates(templates_path, Some("html")).unwrap();
     let card_template = load_template(Path::new("templates/elements/article_card.html")).unwrap();
@@ -163,7 +186,8 @@ fn create_article_entry_list() -> String {
         }
     }
     list.sort_by(|a, b| b.date.cmp(&a.date));
-    list.iter().map(|a| a.card.clone()).collect::<String>()
+    let list = Box::from(list.iter().map(|a| a.card.clone()).collect::<String>());
+    Box::leak(list)
 }
 
 fn parse_year_month_date_from_str(date: &str) -> (i32, u32, u32) {
@@ -172,26 +196,24 @@ fn parse_year_month_date_from_str(date: &str) -> (i32, u32, u32) {
     (year.parse().unwrap(), month.parse().unwrap(), day.parse().unwrap())
 }
 
-fn create_favicon_trash() -> String {
-    String::from(
-        r##"<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+fn create_favicon_trash() -> &'static str {
+    r##"<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="manifest" href="site.webmanifest">
-"##,
-    )
+"##
 }
 
-fn get_classes_to_push_footer_down() -> String {
-    String::from("grid min-h-[100dvh] grid-rows-[auto_1fr_auto]")
+fn get_classes_to_push_footer_down() -> &'static str {
+    "grid min-h-[100dvh] grid-rows-[auto_1fr_auto]"
 }
 
-fn get_body_classes() -> String {
-    String::from("bg-l-bg text-l-text dark:bg-d-bg dark:text-d-text")
+fn get_body_classes() -> &'static str {
+    "bg-l-bg text-l-text dark:bg-d-bg dark:text-d-text"
 }
 
-fn get_default_theme() -> String {
-    String::from("dark")
+fn get_default_theme() -> &'static str {
+    "dark"
 }
 
 fn clear_output_directory(output_dir: Option<&Path>) -> Result<(), std::io::Error> {
