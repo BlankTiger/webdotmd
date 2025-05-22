@@ -29,6 +29,7 @@ fn create_autofill_funcs() -> FuncMap {
     // TODO: add an ability to specify features for pages via tagging in metadata, for example:
     // `features: math, code`
     autofill_funcs.insert("mathjax", &get_mathjax);
+    autofill_funcs.insert("outline_highlighting", &get_outline_highlighting);
     autofill_funcs.insert("tw_classes_push_footer", &get_classes_to_push_footer_down);
     autofill_funcs.insert("link_classes", &get_link_classes);
     autofill_funcs.insert("body_classes", &get_body_classes);
@@ -37,6 +38,10 @@ fn create_autofill_funcs() -> FuncMap {
     autofill_funcs.insert("main_closing", &main_closing);
 
     autofill_funcs
+}
+
+fn get_outline_highlighting() -> &'static str {
+    r##"<script src="OutlineHighlighter.js"></script>"##
 }
 
 fn get_mathjax() -> &'static str {
@@ -156,8 +161,8 @@ fn create_article_entry_list() -> &'static str {
     for (name, page) in md_pages {
         if let Some(template_name) = page.get_metadata("template") {
             if template_name == "templates/article_entry.html" {
-                if let Some(wip) = page.get_metadata("WIP") {
-                    if wip == "true" {
+                if let Some(hidden) = page.get_metadata("hidden") {
+                    if hidden == "true" {
                         continue;
                     }
                 }

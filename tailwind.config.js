@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+const colors = require("tailwindcss/colors");
 module.exports = {
   content: ["./output/**/*.{html,js,rs}", "./webdotmd/**/*.{html,js,rs}"],
   darkMode: "selector",

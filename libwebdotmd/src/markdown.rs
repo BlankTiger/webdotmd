@@ -29,8 +29,8 @@ fn header_to_text(header: &str) -> String {
 
 impl Renderable for MarkdownPage {
     fn render(&self, templates: &HashMap<String, Template>, autofill_funcs: &Option<FuncMap>) -> Option<String> {
-        if let Some(wip) = self.get_metadata("WIP") {
-            if wip == "true" {
+        if let Some(hidden) = self.get_metadata("hidden") {
+            if hidden == "true" {
                 return None;
             }
         }
@@ -48,7 +48,7 @@ impl Renderable for MarkdownPage {
                     .map(|el| el.render(templates, autofill_funcs).unwrap())
                     .collect::<String>();
                 let text = &header_to_text(&content);
-                outline.push_str("<li>");
+                outline.push_str(r##"<li class="hover:text-l-accent-secondary dark:hover:text-d-accent-secondary">"##);
                 outline.push_str("<a href=\"#");
                 outline.push_str(text);
                 outline.push_str("\">");
